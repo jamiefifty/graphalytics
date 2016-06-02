@@ -15,13 +15,16 @@
  */
 package nl.tudelft.graphalytics.granula;
 
+import nl.tudelft.graphalytics.domain.Benchmark;
 import nl.tudelft.graphalytics.domain.BenchmarkResult;
 import nl.tudelft.graphalytics.domain.BenchmarkSuiteResult;
+import nl.tudelft.graphalytics.granula.monitoring.MonitoringUtil;
 import nl.tudelft.graphalytics.granula.logging.GangliaLogger;
 import nl.tudelft.graphalytics.granula.logging.UtilizationLogger;
 import nl.tudelft.pds.granula.GranulaArchiver;
 import nl.tudelft.pds.granula.archiver.source.JobDirectorySource;
 import nl.tudelft.pds.granula.modeller.model.job.JobModel;
+import nl.tudelft.pds.granula.util.FileUtil;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.logging.log4j.LogManager;
@@ -111,6 +114,8 @@ public class GranulaManager {
 	}
 
 	public void generateArchive(BenchmarkSuiteResult benchmarkSuiteResult) throws IOException {
+
+
 		// Ensure the log and archive directories exist
 		Path logPath = reportDataPath.resolve("log");
 		Path archivePath = reportDataPath.resolve("archive");
@@ -118,16 +123,40 @@ public class GranulaManager {
 		Files.createDirectories(archivePath);
 
 		for (BenchmarkResult benchmarkResult : benchmarkSuiteResult.getBenchmarkResults()) {
+
 			// make sure the log path(s) exists.
 			Path benchmarkLogPath = logPath.resolve(benchmarkResult.getBenchmark().getBenchmarkIdentificationString());
 			Files.createDirectories(benchmarkLogPath.resolve("OperationLog"));
 			Files.createDirectories(benchmarkLogPath.resolve("UtilizationLog"));
 
+			long startTime = benchmarkResult.getStartOfBenchmark().getTime();
+			long endTime = benchmarkResult.getEndOfBenchmark().getTime();
+			Benchmark benchmark = benchmarkResult.getBenchmark();
+//			String inputPath = "/local/wlngai/graphalytics/exec/graphalytics/utilization-log";
+			String inputPath = benchmarkLogPath.resolve("UtilizationLog").toAbsolutePath().toString();
+			MonitoringUtil.collectMonitoringData(benchmark.getId(), inputPath);
+			String jobName = String.format("[%s-%s]", benchmark.getAlgorithm().getName(),
+					benchmark.getGraph().getName());
+
+			Path arcPath = logPath.getParent().getParent().resolve("html")
+					.resolve("lib").resolve("granula-visualizer").resolve("data");
+
+			String driverLog = FileUtil.readFile(benchmarkLogPath.resolve("OperationLog").resolve("driver.logs"));
+
+			MonitoringUtil.createJobOp(jobName, startTime, endTime, arcPath.toString(), driverLog);
+
+			MonitoringUtil.createMontioringArc(inputPath + "/" + benchmark.getId(), arcPath.toString());
+
+
+
 			// make sure the archive path exists.
 			Path archiveFile = archivePath.resolve(benchmarkResult.getBenchmark().getBenchmarkIdentificationString() + ".xml");
 
 			// archive
-			archive(benchmarkLogPath.toString(), archiveFile.toString());
+//			archive(benchmarkLogPath.toString(), archiveFile.toString());
+			Path newArchiveFile = logPath.getParent().getParent().resolve("html")
+					.resolve("lib").resolve("granula-visualizer").resolve("data").resolve("jobarchive-op.js");
+			archive(benchmarkLogPath.toString(), newArchiveFile.toString());
 		}
 	}
 

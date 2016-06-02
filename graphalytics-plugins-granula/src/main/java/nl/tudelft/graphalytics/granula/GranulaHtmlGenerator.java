@@ -33,32 +33,24 @@ import java.util.List;
 public class GranulaHtmlGenerator implements HtmlBenchmarkReportGenerator.Plugin {
 
 	private static final String STATIC_RESOURCES[] = new String[]{
-			"lib/granula-visualizer/visualizer.htm",
-			"lib/granula-visualizer/lib/vkbeautify/vkbeautify.js",
-			"lib/granula-visualizer/lib/bootstrap/js/bootstrap.js",
-			"lib/granula-visualizer/lib/bootstrap/css/carousel.css",
-			"lib/granula-visualizer/lib/bootstrap/css/bootstrap.css",
-			"lib/granula-visualizer/lib/bootstrap/fonts/glyphicons-halflings-regular.ttf",
-			"lib/granula-visualizer/lib/bootstrap/fonts/glyphicons-halflings-regular.woff",
-			"lib/granula-visualizer/lib/bootstrap/fonts/glyphicons-halflings-regular.eot",
-			"lib/granula-visualizer/lib/bootstrap/fonts/glyphicons-halflings-regular.woff2",
-			"lib/granula-visualizer/lib/bootstrap/fonts/glyphicons-halflings-regular.svg",
-			"lib/granula-visualizer/lib/jquery-2.1.3.min.js",
-			"lib/granula-visualizer/lib/snap.svg-min.js",
-			"lib/granula-visualizer/lib/underscore.string.min.js",
-			"lib/granula-visualizer/lib/prettify/prettify.css",
-			"lib/granula-visualizer/lib/prettify/prettify.js",
+			"lib/granula-visualizer/css/granula.css",
+			"lib/granula-visualizer/js/chart.js",
+			"lib/granula-visualizer/js/environmentview.js",
+			"lib/granula-visualizer/js/operation-chart.js",
+			"lib/granula-visualizer/js/view.js",
+			"lib/granula-visualizer/js/util.js",
+			"lib/granula-visualizer/js/overview.js",
+			"lib/granula-visualizer/js/operationview.js",
+			"lib/granula-visualizer/js/data.js",
 			"lib/granula-visualizer/lib/underscore-min.js",
-			"lib/granula-visualizer/visualizer/board.js",
-			"lib/granula-visualizer/visualizer/modal.js",
-			"lib/granula-visualizer/visualizer/visualizer.css",
-			"lib/granula-visualizer/visualizer/utility.js",
-			"lib/granula-visualizer/visualizer/model.js",
-			"lib/granula-visualizer/visualizer/draw.js",
-			"lib/granula-visualizer/visualizer/settings.js",
-			"lib/granula-visualizer/visualizer/data.js",
-			"lib/granula-visualizer/visualizer/visualizer.js",
-			"lib/granula-visualizer/plugin/plugin.js"
+			"lib/granula-visualizer/lib/d3.min.js",
+			"lib/granula-visualizer/lib/jquery.js",
+			"lib/granula-visualizer/lib/nv.d3.css",
+			"lib/granula-visualizer/lib/bootstrap.js",
+			"lib/granula-visualizer/lib/snap.svg-min.js",
+			"lib/granula-visualizer/lib/bootstrap.css",
+			"lib/granula-visualizer/lib/nv.d3.js",
+			"lib/granula-visualizer/visualizer.htm"
 	};
 
 	@Override
@@ -66,8 +58,7 @@ public class GranulaHtmlGenerator implements HtmlBenchmarkReportGenerator.Plugin
 		for (BenchmarkResult benchmarkResult : result.getBenchmarkResults()) {
 			if (benchmarkResult.isCompletedSuccessfully()) {
 				htmlBenchmarkReportGenerator.registerPageLink(benchmarkResult.getBenchmark(),
-						"html/lib/granula-visualizer/visualizer.htm?arc=../../../data/archive/" +
-								benchmarkResult.getBenchmark().getBenchmarkIdentificationString() + ".xml");
+						"html/lib/granula-visualizer/visualizer.htm");
 			}
 		}
 	}
