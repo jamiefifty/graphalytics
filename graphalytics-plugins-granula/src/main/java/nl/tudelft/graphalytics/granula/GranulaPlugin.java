@@ -19,8 +19,8 @@ import nl.tudelft.graphalytics.domain.Benchmark;
 import nl.tudelft.graphalytics.domain.BenchmarkResult;
 import nl.tudelft.graphalytics.domain.BenchmarkSuite;
 import nl.tudelft.graphalytics.domain.BenchmarkSuiteResult;
+import nl.tudelft.graphalytics.granula.util.FileUtil;
 import nl.tudelft.graphalytics.plugin.Plugin;
-import nl.tudelft.graphalytics.reporting.BenchmarkReportFile;
 import nl.tudelft.graphalytics.reporting.BenchmarkReportGenerator;
 import nl.tudelft.graphalytics.reporting.BenchmarkReportWriter;
 import nl.tudelft.graphalytics.reporting.html.HtmlBenchmarkReportGenerator;
@@ -28,10 +28,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Collection;
 
 /**
  * Created by tim on 12/11/15.
@@ -71,10 +69,30 @@ public class GranulaPlugin implements Plugin {
 	public void preBenchmark(Benchmark nextBenchmark) {
 		if(GranulaManager.isGranulaEnabled) {
 			if(GranulaManager.isLoggingEnabled) {
-				LOG.info("- Collecting job logs for Granula.");
-				platform.setBenchmarkLogDirectory(getLogDirectory(nextBenchmark));
+				LOG.info("- Initialize log collection for Granula.");
+				enableGraphalyticsLog(nextBenchmark);
+				platform.preBenchmark(nextBenchmark, getLogDirectory(nextBenchmark));
 			}
 		}
+
+	}
+
+	private void enableGraphalyticsLog(Benchmark benchmark) {
+		Path backupPath = getLogDirectory(benchmark).resolve("GraphalyticsLog");
+		backupPath.toFile().mkdirs();
+
+		Path backFile = backupPath.resolve("graphalytics-log.txt");
+		try {
+			backFile.toFile().createNewFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		String benchmarkLog = "";
+		benchmarkLog += getLogDirectory(benchmark) + " ";
+		benchmarkLog += benchmark.getBenchmarkIdentificationString() + " ";
+		benchmarkLog += benchmark.getId() + " ";
+		benchmarkLog += System.currentTimeMillis() + " ";
+		FileUtil.writeFile(benchmarkLog, backFile);
 
 	}
 
@@ -82,8 +100,8 @@ public class GranulaPlugin implements Plugin {
 	public void postBenchmark(Benchmark completedBenchmark, BenchmarkResult benchmarkResult) {
 		if (GranulaManager.isGranulaEnabled) {
 			if (GranulaManager.isLoggingEnabled) {
-				LOG.info("- Categorizing collected logs for Granula.");
-				platform.finalizeBenchmarkLogs(getLogDirectory(completedBenchmark));
+				LOG.info("- Preserving logs for Granula.");
+				platform.postBenchmark(completedBenchmark, getLogDirectory(completedBenchmark));
 			}
 		}
 	}

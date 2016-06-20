@@ -20,12 +20,17 @@ import nl.tudelft.granula.modeller.entity.BasicType.ArchiveFormat;
 import nl.tudelft.granula.modeller.job.JobModel;
 import nl.tudelft.granula.modeller.job.Overview;
 import nl.tudelft.granula.modeller.source.JobDirectorySource;
+import nl.tudelft.granula.modeller.system.System;
+import nl.tudelft.graphalytics.Graphalytics;
+import nl.tudelft.graphalytics.Platform;
 import nl.tudelft.graphalytics.domain.Benchmark;
 import nl.tudelft.graphalytics.domain.BenchmarkResult;
 import nl.tudelft.graphalytics.domain.BenchmarkSuiteResult;
 import nl.tudelft.graphalytics.granula.logging.GangliaLogger;
 import nl.tudelft.graphalytics.granula.logging.UtilizationLogger;
 import nl.tudelft.graphalytics.granula.util.json.JsonUtil;
+import nl.tudelft.graphalytics.reporting.html.HtmlBenchmarkReportGenerator;
+import nl.tudelft.graphalytics.reporting.html.StaticResource;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.exec.CommandLine;
@@ -41,6 +46,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -63,16 +69,12 @@ public class GranulaManager {
 	private static final String LOGGING_PRESERVED = "benchmark.run.granula.logging-preserved";
 	private static final String ARCHIVING_ENABLED = "benchmark.run.granula.archiving-enabled";
 
-	private static final String UTILIZATION_LOGGING_ENABLED = "benchmark.run.granula.utilization-logging-enabled";
-	private static final String UTILIZATION_LOGGING_TOOL = "benchmark.run.granula.utilization-logging-tool";
 
 	public static boolean isGranulaEnabled;
 	public static boolean isLoggingEnabled;
 	public static boolean isLogDataPreserved;
 	public static boolean isArchivingEnabled;
-	public static boolean isUtilLoggingEnabled;
 
-	public static UtilizationLogger utilizationLogger;
 
 	JobModel model;
 	Path reportDataPath;
@@ -86,7 +88,6 @@ public class GranulaManager {
 			isLoggingEnabled = granulaConfig.getBoolean(LOGGING_ENABLED, false);
 			isLogDataPreserved = granulaConfig.getBoolean(LOGGING_PRESERVED, false);
 			isArchivingEnabled = granulaConfig.getBoolean(ARCHIVING_ENABLED, false);
-			isUtilLoggingEnabled = granulaConfig.getBoolean(UTILIZATION_LOGGING_ENABLED, false);
 
 			if(isGranulaEnabled) {
 				LOG.info("Granula plugin is found, and is enabled.");
@@ -102,30 +103,10 @@ public class GranulaManager {
 						"Turning off the archiving feature of Granula. ", ARCHIVING_ENABLED, LOGGING_ENABLED));
 				isGranulaEnabled = false;
 			}
-
-			String utilToolName = granulaConfig.getString(UTILIZATION_LOGGING_TOOL);
-
-			switch (utilToolName) {
-				case "ganglia":
-					utilizationLogger = new GangliaLogger();
-					break;
-				default:
-					throw new IllegalArgumentException(String.format("%s is a valid utilization logging tool", utilToolName));
-			}
-
 		} catch (ConfigurationException e) {
 			LOG.info("Could not find or load granula.properties.");
 		}
 		setModel(platform.getPerformanceModel());
-	}
-
-	public void archive(Overview overview, String inputPath, String outputPath) {
-		JobDirectorySource jobDirSource = new JobDirectorySource(inputPath);
-		jobDirSource.load();
-
-		GranulaArchiver granulaArchiver = new GranulaArchiver(jobDirSource, model, outputPath, ArchiveFormat.JS);
-		granulaArchiver.setOverview(overview);
-		granulaArchiver.archive();
 	}
 
 	public void generateArchive(BenchmarkSuiteResult benchmarkSuiteResult) throws IOException {
@@ -133,118 +114,68 @@ public class GranulaManager {
 
 		// Ensure the log and archive directories exist
 		Path logPath = reportDataPath.resolve("log");
-		Path archivePath = reportDataPath.resolve("archive");
+		Path stdArcPath = reportDataPath.resolve("archive"); //not used atm
+		Path usedArcPath = logPath.getParent().getParent().resolve("html").resolve("lib").resolve("granula-visualizer").resolve("data");
 		Files.createDirectories(logPath);
-		Files.createDirectories(archivePath);
+		Files.createDirectories(stdArcPath);  //not used atm
 
 		for (BenchmarkResult benchmarkResult : benchmarkSuiteResult.getBenchmarkResults()) {
 
 			// make sure the log path(s) exists.
-			Path benchmarkLogPath = logPath.resolve(benchmarkResult.getBenchmark().getBenchmarkIdentificationString());
-			Files.createDirectories(benchmarkLogPath.resolve("OperationLog"));
-			Files.createDirectories(benchmarkLogPath.resolve("UtilizationLog"));
+			Path logDataPath = logPath.resolve(benchmarkResult.getBenchmark().getBenchmarkIdentificationString());
+			Files.createDirectories(logDataPath.resolve("OperationLog"));
+			Files.createDirectories(logDataPath.resolve("UtilizationLog"));
 
+			Benchmark benchmark = benchmarkResult.getBenchmark();
 			long startTime = benchmarkResult.getStartOfBenchmark().getTime();
 			long endTime = benchmarkResult.getEndOfBenchmark().getTime();
-			Benchmark benchmark = benchmarkResult.getBenchmark();
-//			String inputPath = "/local/wlngai/graphalytics/exec/graphalytics/utilization-log";
-			String inputPath = benchmarkLogPath.resolve("UtilizationLog").toAbsolutePath().toString();
-			collectMonitoringData(benchmark.getId(), inputPath);
-			String jobName = String.format("[%s-%s]", benchmark.getAlgorithm().getName(),
-					benchmark.getGraph().getName());
+			String jobId = benchmark.getId();
 
-			Path arcPath = logPath.getParent().getParent().resolve("html")
-					.resolve("lib").resolve("granula-visualizer").resolve("data");
+			SystemArchiver systemArchiver = new SystemArchiver();
+			systemArchiver.createSysArchive(logDataPath, usedArcPath, startTime, endTime, model);
 
-			createMontioringArc(inputPath + "/" + benchmark.getId(), arcPath.toString());
-
-			// archive
-			Path newArchiveFile = logPath.getParent().getParent().resolve("html")
-					.resolve("lib").resolve("granula-visualizer").resolve("data");
-
-			Overview overview = new Overview();
-			overview.setStartTime(startTime);
-			overview.setEndTime(endTime);
-			overview.setName("PGX.D Job");
-
-			overview.setDescription("PGX.D is a graph processing engine by Oracle. " +
-					"While conventional graph processing systems only allow vertices to ‘push’ (write) data to its neighbors, " +
-					"PGX.D enables vertices to also ‘pull’ (read) data. Additionally, " +
-					"PGX.D uses a fast cooperative context-switching mechanism and focuses on low-overhead, " +
-					"bandwidth-efficient network communication.");
-			archive(overview, benchmarkLogPath.toString(), newArchiveFile.toString());
+			EnvironmentArchiver environmentArchiver = new EnvironmentArchiver();
+			environmentArchiver.creatEnvArchive(logDataPath, usedArcPath, jobId);
 		}
 	}
 
-	public void collectMonitoringData(String benchmarkId, String outpath) {
 
-		CommandLine commandLine = new CommandLine("/var/scratch/wlngai/graphalytics-runner/debug/app/granula/sh/collect-data.sh");
-		commandLine.addArgument(benchmarkId);
-		commandLine.addArgument(outpath);
+	public static void generateFailedJobArchive(String rawlogPath, String arcPath, String benchmarkIdString, String benchmarkId, long startTime, long endTime, JobModel model) throws IOException {
+		// Ensure the log and archive directories exist
+		Path logPath = Paths.get(rawlogPath);
+		Path usedArcPath = Paths.get(arcPath).resolve("data");
+		Files.createDirectories(logPath);
+		// make sure the log path(s) exists.
 
-//        (new File(outpath)).mkdir();
-		System.out.println("Collect monitoring data with command line: " + commandLine);
-		Executor executor = new DefaultExecutor();
-		executor.setExitValues(null);
-		try {
-			executor.execute(commandLine);
-			Thread.sleep(5000);
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
+		Path logDataPath = logPath;
+		Files.createDirectories(logDataPath.resolve("OperationLog"));
+		Files.createDirectories(logDataPath.resolve("UtilizationLog"));
 
-	}
+		String jobId = benchmarkId;
 
-	public void createMontioringArc(String inPath, String outPath) {
-		System.out.println("inPath = " + inPath);
-		System.out.println("outPath = " + outPath);
+		SystemArchiver systemArchiver = new SystemArchiver();
+		systemArchiver.createSysArchive(logDataPath, usedArcPath, startTime, endTime, model);
+
+		EnvironmentArchiver environmentArchiver = new EnvironmentArchiver();
+		environmentArchiver.creatEnvArchive(logDataPath, usedArcPath, jobId);
 
 
-		(new File(outPath)).mkdirs();
-		Path utildatajs =  Paths.get(outPath).resolve("env-arc.js");
-		String data = "var jobMetrics = " + JsonUtil.toJson(createMetrics(inPath));
-		data = data.replaceAll("\\{\"key", "\n\\{\"key");
-		nl.tudelft.graphalytics.granula.util.FileUtil.writeFile(data, utildatajs);
-	}
-
-	public List<MetricData> createMetrics(String inputPath) {
+		for (String resource : GranulaHtmlGenerator.STATIC_RESOURCES) {
+			URL resourceUrl = HtmlBenchmarkReportGenerator.class.getResource("/granula/reporting/html/" + resource);
 
 
-		List<MetricData> metricDatas = new ArrayList<>();
-
-		String rootPath = inputPath;
-		Collection files = FileUtils.listFiles(new File(rootPath), new RegexFileFilter("^(.*?)"), DirectoryFileFilter.DIRECTORY);
-
-
-		for (Object f : files) {
-			Path filePath = ((File) f).toPath();
-			if (Files.isRegularFile(filePath) && !filePath.getFileName().toString().equals("success")
-					&& filePath.toString().contains("1000ms")) {
-
-				MetricData metricData = new MetricData();
-				metricData.key = filePath.toAbsolutePath().toString().replaceAll(rootPath, "");
-				if(metricData.key.startsWith("/")) {
-					metricData.key = metricData.key.substring(1, metricData.key.length());
-				}
-
-				try (BufferedReader br = new BufferedReader(new FileReader(filePath.toFile()))) {
-					String line;
-					while ((line = br.readLine()) != null) {
-						String[] dp = line.split("\\s+");
-						metricData.addValue(dp[0], dp[1]);
-					}
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				metricDatas.add(metricData);
+			Path outputPath = Paths.get(arcPath).resolve(resource.replace("lib/granula-visualizer/", ""));
+			if (!outputPath.getParent().toFile().exists()) {
+				Files.createDirectories(outputPath.getParent());
+			} else if (!outputPath.getParent().toFile().isDirectory()) {
+				throw new IOException("Could not write static resource to \"" + outputPath + "\": parent is not a directory.");
 			}
-
+			// Copy the resource to the output file
+			FileUtils.copyInputStreamToFile(resourceUrl.openStream(), outputPath.toFile());
 		}
 
-		return metricDatas;
 	}
+
 
 	public void setModel(JobModel model) {
 		this.model = model;

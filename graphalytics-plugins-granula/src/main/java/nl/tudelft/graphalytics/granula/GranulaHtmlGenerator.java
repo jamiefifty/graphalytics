@@ -32,7 +32,7 @@ import java.util.List;
  */
 public class GranulaHtmlGenerator implements HtmlBenchmarkReportGenerator.Plugin {
 
-	private static final String STATIC_RESOURCES[] = new String[]{
+	public static final String STATIC_RESOURCES[] = new String[]{
 			"lib/granula-visualizer/css/granula.css",
 			"lib/granula-visualizer/js/chart.js",
 			"lib/granula-visualizer/js/data.js",
