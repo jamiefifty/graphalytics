@@ -2,7 +2,7 @@
 
 function setJob() {
 
-    job.usage = jobMetrics.map(function (rawdata) { return metricData(rawdata, 1); });
+    job.env = jobMetrics.map(function (rawdata) { return metricData(rawdata, 1); });
 
     $('#job').append(jobPanel(job));
     // $('a[href="#environment-tab"]').tab('show');
@@ -41,14 +41,14 @@ function jobPanel(job) {
 
 
 function jobHeader(job) {
-    var name = job.name;
+    var name = job.meta.name;
     var header =$('<div class="card-header dark job-border">' + name + '</div>');
     return header;
 }
 
 
 function jobFooter() {
-    var name = job.name;
+    var name = job.meta.name;
     var footer =$('<div class="card-header dark">' + name + '</div>');
     return footer;
 }

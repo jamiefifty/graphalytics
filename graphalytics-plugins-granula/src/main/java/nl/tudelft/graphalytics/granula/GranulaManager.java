@@ -15,24 +15,38 @@
  */
 package nl.tudelft.graphalytics.granula;
 
+import nl.tudelft.granula.archiver.GranulaArchiver;
+import nl.tudelft.granula.modeller.entity.BasicType.ArchiveFormat;
+import nl.tudelft.granula.modeller.job.JobModel;
+import nl.tudelft.granula.modeller.job.Overview;
+import nl.tudelft.granula.modeller.source.JobDirectorySource;
 import nl.tudelft.graphalytics.domain.Benchmark;
 import nl.tudelft.graphalytics.domain.BenchmarkResult;
 import nl.tudelft.graphalytics.domain.BenchmarkSuiteResult;
-import nl.tudelft.graphalytics.granula.monitoring.MonitoringUtil;
 import nl.tudelft.graphalytics.granula.logging.GangliaLogger;
 import nl.tudelft.graphalytics.granula.logging.UtilizationLogger;
-import nl.tudelft.pds.granula.GranulaArchiver;
-import nl.tudelft.pds.granula.archiver.source.JobDirectorySource;
-import nl.tudelft.pds.granula.modeller.model.job.JobModel;
-import nl.tudelft.pds.granula.util.FileUtil;
+import nl.tudelft.graphalytics.granula.util.json.JsonUtil;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.exec.CommandLine;
+import org.apache.commons.exec.DefaultExecutor;
+import org.apache.commons.exec.Executor;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.DirectoryFileFilter;
+import org.apache.commons.io.filefilter.RegexFileFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Created by wlngai on 10-9-15.
@@ -102,14 +116,15 @@ public class GranulaManager {
 		} catch (ConfigurationException e) {
 			LOG.info("Could not find or load granula.properties.");
 		}
-		setModel(platform.getGranulaModel());
+		setModel(platform.getPerformanceModel());
 	}
 
-	public void archive(String inputPath, String outputPath) {
+	public void archive(Overview overview, String inputPath, String outputPath) {
 		JobDirectorySource jobDirSource = new JobDirectorySource(inputPath);
 		jobDirSource.load();
 
-		GranulaArchiver granulaArchiver = new GranulaArchiver(jobDirSource, model, outputPath);
+		GranulaArchiver granulaArchiver = new GranulaArchiver(jobDirSource, model, outputPath, ArchiveFormat.JS);
+		granulaArchiver.setOverview(overview);
 		granulaArchiver.archive();
 	}
 
@@ -134,30 +149,101 @@ public class GranulaManager {
 			Benchmark benchmark = benchmarkResult.getBenchmark();
 //			String inputPath = "/local/wlngai/graphalytics/exec/graphalytics/utilization-log";
 			String inputPath = benchmarkLogPath.resolve("UtilizationLog").toAbsolutePath().toString();
-			MonitoringUtil.collectMonitoringData(benchmark.getId(), inputPath);
+			collectMonitoringData(benchmark.getId(), inputPath);
 			String jobName = String.format("[%s-%s]", benchmark.getAlgorithm().getName(),
 					benchmark.getGraph().getName());
 
 			Path arcPath = logPath.getParent().getParent().resolve("html")
 					.resolve("lib").resolve("granula-visualizer").resolve("data");
 
-			String driverLog = FileUtil.readFile(benchmarkLogPath.resolve("OperationLog").resolve("driver.logs"));
-
-			MonitoringUtil.createJobOp(jobName, startTime, endTime, arcPath.toString(), driverLog);
-
-			MonitoringUtil.createMontioringArc(inputPath + "/" + benchmark.getId(), arcPath.toString());
-
-
-
-			// make sure the archive path exists.
-			Path archiveFile = archivePath.resolve(benchmarkResult.getBenchmark().getBenchmarkIdentificationString() + ".xml");
+			createMontioringArc(inputPath + "/" + benchmark.getId(), arcPath.toString());
 
 			// archive
-//			archive(benchmarkLogPath.toString(), archiveFile.toString());
 			Path newArchiveFile = logPath.getParent().getParent().resolve("html")
-					.resolve("lib").resolve("granula-visualizer").resolve("data").resolve("jobarchive-op.js");
-			archive(benchmarkLogPath.toString(), newArchiveFile.toString());
+					.resolve("lib").resolve("granula-visualizer").resolve("data");
+
+			Overview overview = new Overview();
+			overview.setStartTime(startTime);
+			overview.setEndTime(endTime);
+			overview.setName("PGX.D Job");
+
+			overview.setDescription("PGX.D is a graph processing engine by Oracle. " +
+					"While conventional graph processing systems only allow vertices to ‘push’ (write) data to its neighbors, " +
+					"PGX.D enables vertices to also ‘pull’ (read) data. Additionally, " +
+					"PGX.D uses a fast cooperative context-switching mechanism and focuses on low-overhead, " +
+					"bandwidth-efficient network communication.");
+			archive(overview, benchmarkLogPath.toString(), newArchiveFile.toString());
 		}
+	}
+
+	public void collectMonitoringData(String benchmarkId, String outpath) {
+
+		CommandLine commandLine = new CommandLine("/var/scratch/wlngai/graphalytics-runner/debug/app/granula/sh/collect-data.sh");
+		commandLine.addArgument(benchmarkId);
+		commandLine.addArgument(outpath);
+
+//        (new File(outpath)).mkdir();
+		System.out.println("Collect monitoring data with command line: " + commandLine);
+		Executor executor = new DefaultExecutor();
+		executor.setExitValues(null);
+		try {
+			executor.execute(commandLine);
+			Thread.sleep(5000);
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	public void createMontioringArc(String inPath, String outPath) {
+		System.out.println("inPath = " + inPath);
+		System.out.println("outPath = " + outPath);
+
+
+		(new File(outPath)).mkdirs();
+		Path utildatajs =  Paths.get(outPath).resolve("env-arc.js");
+		String data = "var jobMetrics = " + JsonUtil.toJson(createMetrics(inPath));
+		data = data.replaceAll("\\{\"key", "\n\\{\"key");
+		nl.tudelft.graphalytics.granula.util.FileUtil.writeFile(data, utildatajs);
+	}
+
+	public List<MetricData> createMetrics(String inputPath) {
+
+
+		List<MetricData> metricDatas = new ArrayList<>();
+
+		String rootPath = inputPath;
+		Collection files = FileUtils.listFiles(new File(rootPath), new RegexFileFilter("^(.*?)"), DirectoryFileFilter.DIRECTORY);
+
+
+		for (Object f : files) {
+			Path filePath = ((File) f).toPath();
+			if (Files.isRegularFile(filePath) && !filePath.getFileName().toString().equals("success")
+					&& filePath.toString().contains("1000ms")) {
+
+				MetricData metricData = new MetricData();
+				metricData.key = filePath.toAbsolutePath().toString().replaceAll(rootPath, "");
+				if(metricData.key.startsWith("/")) {
+					metricData.key = metricData.key.substring(1, metricData.key.length());
+				}
+
+				try (BufferedReader br = new BufferedReader(new FileReader(filePath.toFile()))) {
+					String line;
+					while ((line = br.readLine()) != null) {
+						String[] dp = line.split("\\s+");
+						metricData.addValue(dp[0], dp[1]);
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				metricDatas.add(metricData);
+			}
+
+		}
+
+		return metricDatas;
 	}
 
 	public void setModel(JobModel model) {

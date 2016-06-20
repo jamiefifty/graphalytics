@@ -27,10 +27,10 @@ function arcCard(job) {
     var infoSize = 0;
     var actorSize = 0;
     var missionSize = 0;
-    for (var i in job.tree.operations) { operationSize++; }
-    for (var i in job.tree.infos) { infoSize++; }
-    for (var i in job.tree.actors) { actorSize++; }
-    for (var i in job.tree.missions) { missionSize++; }
+    for (var i in job.system.operations) { operationSize++; }
+    for (var i in job.system.infos) { infoSize++; }
+    for (var i in job.system.actors) { actorSize++; }
+    for (var i in job.system.missions) { missionSize++; }
 
     var countTable = divTable();
     countTable.append($(caption("Job Archive")));
@@ -49,7 +49,7 @@ function descriptionCard(job) {
     var descriptionCard = $('<div class="card"></div>');
 
     var descriptionTable = divTable();
-    var description = job.description;
+    var description = job.meta.description;
     descriptionTable.append($(caption("Job Description")));
     descriptionTable.append($('<p>'+description+'</p>'));
     descriptionCard.append(descriptionTable);
@@ -66,8 +66,8 @@ function parameterCard(job) {
     //
     // var startTime = 0;
     // var endTime = 0;
-    // job.tree.infoIds.forEach(function (id) {
-    //     var info = job.tree.infos[id];
+    // job.system.infoIds.forEach(function (id) {
+    //     var info = job.system.infos[id];
     //     if(info.name == "StartTime") {
     //         startTime = info.value;
     //     }
@@ -78,9 +78,9 @@ function parameterCard(job) {
 
     var parameterTable = divTable();
 
-    parameterTable.append(tableRow("Algorithm", job.algorithm));
-    parameterTable.append(tableRow("Dataset", job.dataset));
-    parameterTable.append(tableRow("#Node", job.nodeSize));
+    parameterTable.append(tableRow("Algorithm", job.meta.algorithm));
+    parameterTable.append(tableRow("Dataset", job.meta.dataset));
+    parameterTable.append(tableRow("#Node", job.meta.nodeSize));
     // parameterTable.append(tableRow("#Thread", job.threadSize));
     parameterTable.append($(caption("Job Parameters")));
     parameterCard.append(parameterTable);
@@ -97,17 +97,17 @@ function durationCard(job) {
 
     var durationCard = $('<div class="card"></div>');
 
-    var startTime = 0;
-    var endTime = 0;
-    job.tree.infoIds.forEach(function (id) {
-        var info = job.tree.infos[id];
-        if(info.name == "StartTime") {
-            startTime = info.value;
-        }
-        if(info.name == "EndTime") {
-            endTime = info.value;
-        }
-    });
+    var startTime = job.meta.startTime;
+    var endTime = job.meta.endTime;
+    // job.system.infoIds.forEach(function (id) {
+    //     var info = job.system.infos[id];
+    //     if(info.name == "StartTime") {
+    //         startTime = info.value;
+    //     }
+    //     if(info.name == "EndTime") {
+    //         endTime = info.value;
+    //     }
+    // });
 
     var durationTable = divTable();
 
@@ -130,20 +130,20 @@ function breakDownTableCard(job) {
     var totalTime = 0;
     breakDownTable.append(caption("Job Breakdown"));
 
-    for (var i in job.tree.breakDown) {
-        totalTime += job.tree.breakDown[i];
+    for (var i in job.meta.breakDown) {
+        totalTime += job.meta.breakDown[i];
     }
 
     breakDownTable.append(breakDownRow("Total", totalTime, "s", totalTime));
 
-    for (var i in job.tree.breakDown) {
+    for (var i in job.meta.breakDown) {
         if(i == "Others") {
-            breakDownTable.append(breakDownRow(i, job.tree.breakDown[i], "s", totalTime));
+            breakDownTable.append(breakDownRow(i, job.meta.breakDown[i], "s", totalTime));
         } else {
-            breakDownTable.append(breakDownRow(i, job.tree.breakDown[i], "s", totalTime));
+            breakDownTable.append(breakDownRow(i, job.meta.breakDown[i], "s", totalTime));
         }
 
-        totalTime += job.tree.breakDown[i];
+        totalTime += job.meta.breakDown[i];
     }
 
     breakDownCard.append(breakDownTable);
@@ -157,8 +157,8 @@ function breakDownChartCard(job) {
     var table = divTable();
     table.append('<svg id="breakdown-chart" height="25" width="80"></svg>').each(function () {
         var breakDownData = [];
-        for (var i in job.tree.breakDown) {
-            breakDownData.push({label: i, value: job.tree.breakDown[i]});
+        for (var i in job.meta.breakDown) {
+            breakDownData.push({label: i, value: job.meta.breakDown[i]});
         }
         pieChart("#breakdown-chart", breakDownData);
     });

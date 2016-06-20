@@ -1,4 +1,4 @@
-package nl.tudelft.graphalytics.granula.monitoring.json;
+package nl.tudelft.graphalytics.granula.util.json;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

@@ -15,7 +15,7 @@ function reduceData(jobdata) {
     var newdata = {};
     newdata.key = jobdata.key;
     newdata.values = jobdata.values.filter(function (dp) {
-        return dp[0] >= job.startTime && dp[0] <= job.endTime;
+        return dp[0] >= job.meta.startTime && dp[0] <= job.meta.endTime;
     });
     return newdata;
 };
@@ -233,10 +233,10 @@ function fillGap(jobdata) {
         valuesMap[jobdata.values[i][0]] = jobdata.values[i];
     }
 
-    var start = parseInt(job.startTime) + (1000 - job.startTime % 1000);
-    var end = parseInt(job.endTime) - job.endTime % 1000;
+    var start = parseInt(job.meta.startTime) + (1000 - job.meta.startTime % 1000);
+    var end = parseInt(job.meta.endTime) - job.meta.endTime % 1000;
 
-    newdata.values.push([job.startTime, 0]);
+    newdata.values.push([job.meta.startTime, 0]);
 
     for (var i = start; i <= end; i = i + 1000) {
         if(valuesMap[i] == null) {
@@ -245,7 +245,7 @@ function fillGap(jobdata) {
             newdata.values.push([i, valuesMap[i][1]]);
         }
     }
-    newdata.values.push([job.endTime, 0]);
+    newdata.values.push([job.meta.endTime, 0]);
 
     return newdata;
 };

@@ -1,17 +1,14 @@
-package nl.tudelft.graphalytics.granula.monitoring;
+package nl.tudelft.graphalytics.granula;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Created by wlngai on 5/30/16.
- */
-public class MetricOutput {
+public class MetricData {
     String key;
     List values;
 
-    public MetricOutput() {
+    public MetricData() {
         values = new ArrayList<>();
     }
 

@@ -1,4 +1,4 @@
-package nl.tudelft.graphalytics.granula.monitoring.json;
+package nl.tudelft.graphalytics.granula.util.json;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

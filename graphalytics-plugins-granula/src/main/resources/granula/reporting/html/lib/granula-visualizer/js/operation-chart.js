@@ -1,7 +1,6 @@
 
 function operChart(operation) {
 
-    var iMap = infoMap(operation.infoIds);
     var subOperList = operList(operation.childIds);
 
     var supActorIds = subOperList.map(function (subOper) {return subOper.actorId;})
@@ -41,8 +40,8 @@ function operChart(operation) {
     var mainOp = mainOperation(board, mRect);
 
 
-    var startTime = iMap["StartTime"].value;
-    var endTime = iMap["EndTime"].value;
+    var startTime = info(operation, "StartTime");
+    var endTime = info(operation, "EndTime");
 
 
     subOperList.forEach(function (subOper) {
@@ -64,13 +63,11 @@ function axislines(board, mRect, operation) {
     var ticsSize = 5;
     svgLine(board, mRect.x, mRect.y , mRect.x + mRect.w, mRect.y );
 
-    var operInfoMap = infoMap(operation.infoIds);
-    var duration = operInfoMap["Duration"].value / ticsSize;
+    var duration = info(operation, "Duration") / ticsSize;
 
-    var jobInfoMap = infoMap(job.tree.infoIds);
-    var jobStartTime = jobInfoMap["StartTime"].value;
-    var jobEndTime = jobInfoMap["EndTime"].value;
-    var operStartTime = operInfoMap["StartTime"].value;
+    var jobStartTime =job.meta.startTime;
+    var jobEndTime = job.meta.endTime;
+    var operStartTime = info(operation, "StartTime");
 
     var distance = mRect.w / ticsSize;
     for (var i = 0; i <= ticsSize; i++) {
@@ -89,22 +86,26 @@ function axislines(board, mRect, operation) {
 
 function subOperation(board, mRect, startTime, endTime, subOper, i) {
 
-    var subInfoMap = infoMap(subOper.infoIds);
-    var x = (subInfoMap["StartTime"].value - startTime) / (endTime - startTime);
-    var x2 = (subInfoMap["EndTime"].value - startTime) / (endTime - startTime);
+    var isCompleted = (info(subOper, "Completeness") === "true") ? true : false;
+    var x = (info(subOper, "StartTime") - startTime) / (endTime - startTime);
+    var x2 = (info(subOper, "EndTime") - startTime) / (endTime - startTime);
 
     x = x * (mRect.w) + mRect.x;
     x2 = x2 * mRect.w + mRect.x;
     var sRect = {x: x, y:mRect.y + 10 +i*50, w: (x2 - x), h:(45)};
 
 
-    var subOperRect = rect(board, sRect.x, sRect.y, sRect.w, sRect.h, 2, "#39F");
-
+    var subOperRect;
+    if(isCompleted) {
+        subOperRect = rect(board, sRect.x, sRect.y, sRect.w, sRect.h, 2, "#39F");
+    } else {
+        subOperRect = rect(board, sRect.x, sRect.y, sRect.w, sRect.h, 2, "#F93");
+    }
 
     subOperRect.attr({strokeWidth: 1, stroke: change_brightness("#39F", -80)});
 
 
-    var hint = getOperationName(subOper) + " [" + subInfoMap["Duration"].value  + " ms]";
+    var hint = getOperationName(subOper) + " [" + info(subOper, "Duration")  + " ms]";
     subOperRect.append(Snap.parse('<title>' + hint + '</title>'));
     svgText(board, getMissionName(subOper), sRect, 18, "#FFF");
 
@@ -139,14 +140,14 @@ function actorList(actorIds) {
 
     return _.unique(listMethod(actorIds), equalMethod);
 }
-
-function infoMap(infoIds) {
-    var iMap = {};
-    infoIds.forEach(function (id) {
-        iMap[infos[id].name] = infos[id];
-    });
-    return iMap;
-}
+//
+// function infoMap(infoIds) {
+//     var iMap = {};
+//     infoIds.forEach(function (id) {
+//         iMap[infos[id].name] = infos[id];
+//     });
+//     return iMap;
+// }
 
 function rect(board, x, y, w, h, r, color) {
     var svg = board.rect(x, y, w, h, r);
@@ -166,7 +167,6 @@ function svgText(board, text, rect, size, color) {
     var x = rect.x + rect.w / 2 - (svg.getBBox().cx - rect.x);
     var y = rect.y + rect.h / 2 - (svg.getBBox().cy - rect.y);
 
-    logging2([rect]);
     if(svg.getBBox().w < rect.w * 0.9 && svg.getBBox().h < rect.h * 0.9) {
         svg.remove();
         svg = board.text(x, y, text);
@@ -180,14 +180,14 @@ function svgText(board, text, rect, size, color) {
 }
 
 function getOperationName(operation) {
-    var actor = job.tree.actors[operation.actorId];
-    var mission = job.tree.missions[operation.missionId];
+    var actor = job.system.actors[operation.actorId];
 
+    var mission = job.system.missions[operation.missionId];
     return actor.name+"-"+ mission.name;
 }
 
 
 function getMissionName(operation) {
-    var mission = job.tree.missions[operation.missionId];
+    var mission = job.system.missions[operation.missionId];
     return mission.name;
 }

@@ -1,4 +1,4 @@
-package nl.tudelft.graphalytics.granula.monitoring;
+package nl.tudelft.graphalytics.granula.util;
 
 import java.io.IOException;
 import java.nio.file.Files;

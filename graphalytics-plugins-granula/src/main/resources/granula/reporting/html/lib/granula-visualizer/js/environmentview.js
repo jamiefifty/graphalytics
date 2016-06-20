@@ -30,10 +30,10 @@ function loadEnvChart(e) {
 
 function envResTabAttrs() {
 
-    var dataList = job.usage;
+    var dataList = job.env;
 
-    var startTime = job.startTime;
-    var endTime = job.endTime;
+    var startTime = job.meta.startTime;
+    var endTime = job.meta.endTime;
 
     var netMetricsEthSnd = chartData(filterMetricDataList(dataList, "net-eth-snd", 1000), startTime, endTime, 1000, 1000000000, true);
     var netMetricsEthRec = chartData(filterMetricDataList(dataList, "net-eth-rec", 1000), startTime, endTime, 1000, 1000000000, true);
@@ -75,17 +75,17 @@ function envResTabs(metrics) {
 
     var content = $('<div class="tab-pane fade active in" id="env-summary-tab" role="tabpanel"></div>');
 
-    var startTime;
-    var endTime;
-    job.tree.infoIds.forEach(function (id) {
-        var info = job.tree.infos[id];
-        if(info.name == "StartTime") {
-            startTime = info.value;
-        }
-        if(info.name == "EndTime") {
-            endTime = info.value;
-        }
-    });
+    var startTime = job.meta.startTime;
+    var endTime = job.meta.endTime;
+    // job.system.infoIds.forEach(function (id) {
+    //     var info = job.system.infos[id];
+    //     if(info.name == "StartTime") {
+    //         startTime = info.value;
+    //     }
+    //     if(info.name == "EndTime") {
+    //         endTime = info.value;
+    //     }
+    // });
 
 
     content.append(envSummaryCard(startTime, endTime));
@@ -144,7 +144,7 @@ function envSummaryCard(startTime, endTime) {
 
 function cpuSummaryCard(startTime, endTime) {
 
-    var cpuMetricDataList = filterMetricDataList(job.usage, "cpu", 1000);
+    var cpuMetricDataList = filterMetricDataList(job.env, "cpu", 1000);
     var aggMetricValues = aggregatedMetricValues(cpuMetricDataList);
     var cpuUsage = diffMetricValues(aggMetricValues, startTime, endTime);
     var cpuMax = cpuMetricDataList.length * (endTime - startTime) / 1000 * 32;
@@ -162,7 +162,7 @@ function memSummaryCard(startTime, endTime) {
 
 
 
-    var memMetricDataList = filterMetricDataList(job.usage, "mem", 1000);
+    var memMetricDataList = filterMetricDataList(job.env, "mem", 1000);
     var aggMetricValues = aggregatedMetricValues(memMetricDataList);
     var memAvgAll = avgMethod(extractValues(aggMetricValues, startTime, endTime)) / 1000000;
     var memMaxAll = maxMethod(extractValues(aggMetricValues, startTime, endTime)) / 1000000;
@@ -191,12 +191,12 @@ function memSummaryCard(startTime, endTime) {
 
 function networkSummaryCard(startTime, endTime) {
 
-    var netIbSndMetricDataList = filterMetricDataList(job.usage, "net-ib-snd", 1000);
+    var netIbSndMetricDataList = filterMetricDataList(job.env, "net-ib-snd", 1000);
     var aggMetricValues = aggregatedMetricValues(netIbSndMetricDataList);
     var netIBSnd = diffMetricValues(aggMetricValues, startTime, endTime) / Math.pow(1000, 3);
     var netIBPeak = netIbSndMetricDataList.length * (endTime - startTime) / 1000 * 1.25;
 
-    var aggIbRecValues = aggregatedMetricValues(filterMetricDataList(job.usage, "net-ib-rec", 1000));
+    var aggIbRecValues = aggregatedMetricValues(filterMetricDataList(job.env, "net-ib-rec", 1000));
     var netIBRec = diffMetricValues(aggIbRecValues, startTime, endTime) / Math.pow(1000, 3);
 
     var card = divCard(11);

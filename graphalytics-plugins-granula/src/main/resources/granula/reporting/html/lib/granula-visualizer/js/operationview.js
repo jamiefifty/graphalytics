@@ -10,31 +10,25 @@ operResTabAttrMap = {};
 
 function operationView(job, opTab) {
 
-    operations = job.tree.operations;
-    infos = job.tree.infos;
-    actors = job.tree.actors;
-    missions = job.tree.missions;
+    operations = job.system.operations;
+    infos = job.system.infos;
+    actors = job.system.actors;
+    missions = job.system.missions;
     operationTab = opTab;
 
-    var operation = operations[job.tree.rootIds[0]];
+    var operation = operations[job.system.rootIds[0]];
     drawOperChart(operation);
 
 }
 
 function operDesrCard(operation) {
-    var iMap = infoMap(operation.infoIds);
-
     var card = divCard();
     var table = divTable();
 
-    var summary = iMap["Summary"].summary;
+    var summaryInfo = job.system.infos[operation.infoIds["Summary"]].summary;
+    var summary = job.system.descriptions[summaryInfo].text;
 
     table.append(caption(getOperationName(operation)));
-    // var infoStrings = summary.match(/\[\{[\d]+\}\]/g);
-    // for(var i=0; i< infoStrings.length; i++) {
-    //     var infoString = infoStrings[i];
-    //     summary = summary.replace(infoString, "");
-    // }
 
     table.append($('<p class="text-left">'+summary+'</p>'));
     card.append(table);
@@ -43,13 +37,11 @@ function operDesrCard(operation) {
 
 
 function operDurationCard(operation) {
-    var iMap = infoMap(operation.infoIds);
-
     var card = divCard();
     var table = divTable();
 
-    var startTime = iMap["StartTime"].value;
-    var endTime = iMap["EndTime"].value;
+    var startTime = info(operation, "StartTime");
+    var endTime = info(operation, "EndTime");
     table.append(caption("Duration"));
 
 
@@ -89,12 +81,10 @@ function drawOperChart(operation) {
 
 function operResTabAttrs(operation) {
 
-    var dataList = job.usage;
+    var dataList = job.env;
 
-    var operInfoMap = infoMap(operation.infoIds);
-
-    var startTime = operInfoMap["StartTime"].value;
-    var endTime = operInfoMap["EndTime"].value;
+    var startTime = info(operation, "StartTime");
+    var endTime = info(operation, "EndTime");
 
     var cpuChartAttr = {xLabel:"Execution Time (s)", yLabel:"Cpu Time (s)"};
     var cpuChartData = chartData(filterMetricDataList(dataList, "cpu", 1000), startTime, endTime, 1000, 1, true);
@@ -118,11 +108,8 @@ function operResTabAttrs(operation) {
 
 function operResTabs(operation, tabAttrs) {
 
-    var operInfoMap = infoMap(operation.infoIds);
-
-    var startTime = operInfoMap["StartTime"].value;
-    var endTime = operInfoMap["EndTime"].value;
-
+    var startTime = operation.infoIds["StartTime"].value;
+    var endTime = operation.infoIds["EndTime"].value;
 
     var tabDiv = $('<div role="tabpanel">');
     var tabList = $('<ul class="nav nav-tabs" role="tablist" />');
@@ -167,6 +154,9 @@ function operResTabs(operation, tabAttrs) {
     return tabDiv;
 }
 
+function info(entity, name) {
+    return job.system.infos[entity.infoIds[name]].value
+}
 
 function navigationLink(operation) {
 
@@ -182,7 +172,6 @@ function navigationLink(operation) {
 
         link.on('click', function (e) {
             e.preventDefault();
-            logging($(this).attr('uuid'));
             drawOperChart(operations[$(this).attr('uuid')]);
         });
         ancestorLink.prepend(link);
